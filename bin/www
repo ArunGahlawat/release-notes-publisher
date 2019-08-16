@@ -8,11 +8,9 @@ var app = require('../app');
 var debug = require('debug')('phabevents:server');
 var http = require('http');
 
-/**
- * Using port 7007 for node server.
- */
+var config = require('../config');
 
-var port = normalizePort('7007');
+var port = normalizePort(config.app.port);
 app.set('port', port);
 
 /**

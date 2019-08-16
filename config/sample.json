@@ -1,0 +1,23 @@
+{
+  "app": {
+    "port": 1234
+  },
+  "mysql" : {
+    "host": "<host>",
+    "port": 1000,
+    "user": "<mysql user>",
+    "pass": "<mysql pass>",
+    "queries": {
+      "query1": "query statement"
+    }
+  },
+  "phabricator": {
+    "apiToken": "phabricator api token",
+    "host": "phabricator host"
+  },
+  "query": {
+    "projects": {
+      "archived": "archived projects query key"
+    }
+  }
+}

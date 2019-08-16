@@ -1,11 +1,18 @@
 var express = require('express');
 var router = express.Router();
 const request = require("superagent");
-const phabricatorHost = 'http://phabricator.local/api/';
-const phabricatorApiToken = 'api-cw5sy7lyjylumki67rhnjaumqq2w';
-const archiveProjectQuery = 'ftbNds4RNmg1';
+var config = require('../../config');
+var mysql = require('mysql');
+var connection = mysql.createConnection({
+  host : config.mysql.host,
+  port : config.mysql.port,
+  user : config.mysql.user,
+  password : config.mysql.pass
+});
 
-
+const phabricatorHost = config.phabricator.host;
+const phabricatorApiToken = config.phabricator.apiToken;
+const archiveProjectQuery = config.query.projects.archived;
 
 /* Projects home page. */
 router.get('/', function(req, res) {
@@ -51,19 +58,41 @@ router.post('/', function(req, res) {
         .then(
             response => {
               res.status(200).write("Ok");
-              res.end();
               if (response.status === 200 && response.type === 'application/json') {
-                console.log("=========================== Raw Response =============================");
+                console.log("=========================== Raw Response ===========================");
                 console.log(response.body.result);
                 console.log("============================================================================");
                 if(response.body.result.data[0]) {
-                  console.log("Valid project. Details:", response.body.result.data[0]);
+                  console.log("=========================== Archived project details =========================== ");
+                  console.log(response.body.result.data[0]);
+                  console.log("============================================================================");
                   archivedProjectDetails=response.body.result.data[0];
+                  var isSendReleaseNotes = archivedProjectDetails.fields['custom.rivigo:send-release-notes'];
+                  if (isSendReleaseNotes) {
+                    var releaseNoteRecipientsPHID = archivedProjectDetails.fields['custom.rivigo:release-notes-recipients'];
+                    if (releaseNoteRecipientsPHID && releaseNoteRecipientsPHID.length > 0) {
+                      var releaseNoteRecipients = "'"+releaseNoteRecipientsPHID.join("','")+"'";
+                      console.log("Recipients: ",releaseNoteRecipients);
+                      var query = config.mysql.queries.getUserEmail.replace('%KEY%',releaseNoteRecipients);
+                      connection.query(query, function (error, result, fields) {
+                        if (error) throw error;
+                        console.log(result.length);
+                        console.log("Result:",result);
+                        console.log("Fields",fields);
+                        connection.end(function(err) {
+                          if (err) throw err;
+                          console.log("Disconnected")
+                        });
+                      });
+                    }
+                  }
+
                 }
                 else {
                   console.log("Archived project not found");
                 }
               }
+              res.end();
             },
             (error) => {
               console.log(error);

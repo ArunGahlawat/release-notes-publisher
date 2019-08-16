@@ -3,8 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "node ./bin/www",
-    "debug": "DEBUG=express:* node ./bin/www"
+    "start": "node ./bin/www env=production",
+    "debug": "DEBUG=express:* node ./bin/www env=production",
+    "local": "DEBUG=express:* node ./bin/www env=local"
   },
   "dependencies": {
     "body-parser": "^1.18.3",
@@ -13,9 +14,10 @@
     "express": "^4.16.4",
     "http-errors": "~1.6.3",
     "morgan": "~1.9.1",
+    "mysql": "^2.17.1",
     "pug": "^2.0.4",
-    "superagent": "^4.0.0",
-    "pug-cli": "^1.0.0-alpha6"
+    "pug-cli": "^1.0.0-alpha6",
+    "superagent": "^4.0.0"
   },
   "devDependencies": {
     "prettier": "1.15.3"
