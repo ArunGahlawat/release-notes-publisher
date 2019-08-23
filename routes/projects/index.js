@@ -73,14 +73,20 @@ router.post('/', function(req, res) {
                     if (releaseNoteRecipientsPHID && releaseNoteRecipientsPHID.length > 0) {
                       var releaseNoteRecipients = "'"+releaseNoteRecipientsPHID.join("','")+"'";
                       console.log("Recipients: ",releaseNoteRecipients);
-                      var query = config.mysql.queries.getUserEmail.replace('%KEY%',releaseNoteRecipients);
+                      var query = config.mysql.queries.getUserEmail.replace('_KEY1_',releaseNoteRecipients);
                       connection.query(query, function (error, result, fields) {
-                        if (error) throw error;
-                        console.log(result.length);
-                        console.log("Result:",result);
-                        console.log("Fields",fields);
+                        if (error)
+                            throw error;
+                        console.log("Result: ", result.length);
+                        if (result.length !== releaseNoteRecipientsPHID.length) {
+                            console.log("Email count and recipients count is not same ")
+                        }
+                        for (var i = 0; i < result.length; i++) {
+                            console.log(result[i].phid.toString(),":",result[i].realName.toString(),":",result[i].address.toString());
+                        }
                         connection.end(function(err) {
-                          if (err) throw err;
+                          if (err)
+                              throw err;
                           console.log("Disconnected")
                         });
                       });
