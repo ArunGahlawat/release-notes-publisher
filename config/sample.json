@@ -17,7 +17,22 @@
   },
   "query": {
     "projects": {
-      "archived": "archived projects query key"
+      "archived": "archived project query"
+    }
+  },
+  "mail": {
+    "transporter": {
+      "SMTP": {
+        "HOST": "smtp host address",
+        "PORT": 123,
+        "SECURE": false,
+        "USER_NAME": "sender email",
+        "PASSWORD": "sender pass"
+      }
+    },
+    "helperOptions": {
+      "from": "\"User Name\" <user@emailaddress>",
+      "subject": "Release notes for _KEY1_ on _KEY2_"
     }
   }
 }

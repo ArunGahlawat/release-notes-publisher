@@ -3,6 +3,9 @@ var router = express.Router();
 const request = require("superagent");
 var config = require('../../config');
 var mysql = require('mysql');
+var moment = require('moment');
+var MailConfig = require('../../email');
+var smtpTransport = MailConfig.SMTPTransport;
 var connection = mysql.createConnection({
   host : config.mysql.host,
   port : config.mysql.port,
@@ -30,14 +33,13 @@ router.post('/', function(req, res) {
   console.log("=========================== Raw Request =============================");
   console.log(req.body);
   console.log("============================================================================");
-  console.log("phabricatorToken: ", phabricatorToken);
-  console.log("contentType: ", contentType);
+  console.log("phabricatorToken: ",phabricatorToken);
+  console.log("contentType: ",contentType);
   console.log("trigger type: ",triggerType);
   console.log("trigger phid: ",projectPHID);
   console.log("trigger time: ",triggerTime);
   console.log("is test: ",isTest);
   var archivedProjectDetails;
-  console.log("============================================================================");
   if(contentType !== 'application/json' || triggerType !== 'PROJ' || isTest !== false || !phabricatorToken || !projectPHID || !triggerTime ) {
     res.status(400).write("Invalid trigger endpoint");
     console.log("Invalid payload received");
@@ -59,15 +61,15 @@ router.post('/', function(req, res) {
             response => {
               res.status(200).write("Ok");
               if (response.status === 200 && response.type === 'application/json') {
-                console.log("=========================== Raw Response ===========================");
-                console.log(response.body.result);
-                console.log("============================================================================");
                 if(response.body.result.data[0]) {
                   console.log("=========================== Archived project details =========================== ");
                   console.log(response.body.result.data[0]);
                   console.log("============================================================================");
                   archivedProjectDetails=response.body.result.data[0];
                   var isSendReleaseNotes = archivedProjectDetails.fields['custom.rivigo:send-release-notes'];
+                  var projectName = archivedProjectDetails.fields['name'];
+                  var recipientEmails = [];
+                  var recipientNames = [];
                   if (isSendReleaseNotes) {
                     var releaseNoteRecipientsPHID = archivedProjectDetails.fields['custom.rivigo:release-notes-recipients'];
                     if (releaseNoteRecipientsPHID && releaseNoteRecipientsPHID.length > 0) {
@@ -82,17 +84,44 @@ router.post('/', function(req, res) {
                             console.log("Email count and recipients count is not same ")
                         }
                         for (var i = 0; i < result.length; i++) {
-                            console.log(result[i].phid.toString(),":",result[i].realName.toString(),":",result[i].address.toString());
+                            recipientEmails.push(result[i].address.toString());
+                            recipientNames.push(result[i].realName.toString());
                         }
-                        connection.end(function(err) {
-                          if (err)
-                              throw err;
-                          console.log("Disconnected")
-                        });
+                        console.log("recipientEmails.length:",recipientEmails.length," recipientNames.length:",recipientNames.length);
+                        if (recipientEmails.length > 0 && recipientNames.length > 0) {
+                          var currentTime = moment().format('dddd, MMM Do YYYY').toString();
+                          let mailOptions = {
+                            from: config.mail.helperOptions.from,
+                            to: recipientEmails.join(","),
+                            subject: config.mail.helperOptions.subject.replace("_KEY1_", projectName).replace("_KEY2_", currentTime),
+                            text:"this is text body",
+                            html:"Hi "+recipientNames.join(", ")+"<br><br>Below are the release notes for <strong>"+projectName+"</strong><br><br>Test release notes",
+                          };
+                          smtpTransport.verify((error,success) => {
+                            if (error) {
+                              console.error("Error verifying email: ", error);
+                              res.status(200).write("Ok");
+                              res.end();
+                            } else {
+                              console.log("Email verification successful");
+                              smtpTransport.sendMail(mailOptions,(error,info) => {
+                                if (error) {
+                                  console.error("Error sending email: ", error);
+                                  res.status(200).write("Ok");
+                                  res.end();
+                                }
+                              });
+                            }
+                          });
+                        }
+                      });
+                      connection.end(function(err) {
+                        if (err)
+                          throw err;
+                        console.log("Disconnected")
                       });
                     }
                   }
-
                 }
                 else {
                   console.log("Archived project not found");
