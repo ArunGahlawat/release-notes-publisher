@@ -30,7 +30,6 @@ router.post('/', function(req, res) {
   const contentType = req.get('content-type');
   const triggerType = req.body.object.type;
   const projectPHID = req.body.object.phid;
-  const projectSlug = req.body.object
   const triggerTime = req.body.action.epoch;
   const isTest = req.body.action.test;
   console.log("=========================== Raw Request =============================");
