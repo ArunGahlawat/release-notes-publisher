@@ -80,7 +80,7 @@ router.post('/', function(req, res) {
                         .set("Content-Type", "application/x-www-form-urlencoded")
                         .send({
                           'api.token': `${phabricatorApiToken}`,
-                          'constraints[projects][0]': `${archivedProjectDetails.fields['slug']}`,
+                          'constraints[projects][0]': `${archivedProjectDetails.phid}`,
                           'constraints[statuses][0]': 'closed'
                         })
                         .then(
