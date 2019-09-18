@@ -96,8 +96,16 @@ router.post('/', function(req, res) {
                                     var taskId = "T" + taskDetails.id.toString();
                                     var taskUrl = phabricatorHost + taskId;
                                     var taskType = taskDetails.fields['subtype'];
+                                    if (taskType.toUpperCase() === "DEFAULT")
+                                      taskType = "Tech Support";
                                     var taskTitle = taskDetails.fields['name'];
-                                    var taskReleaseNotes = "&nbsp;&nbsp;&nbsp;&nbsp;"+taskDetails.fields['custom.rivigo:release-notes'];
+                                    var releaseNotesFieldData = taskDetails.fields['custom.rivigo:release-notes'];
+                                    if (!releaseNotesFieldData || releaseNotesFieldData === 'null')
+                                      releaseNotesFieldData = "";
+                                    var releaseNotesIndent = "&nbsp;&nbsp;&nbsp;&nbsp;";
+                                    if (mti >=9)
+                                      releaseNotesIndent += "&nbsp;";
+                                    var taskReleaseNotes = releaseNotesIndent+releaseNotesFieldData;
                                     if (taskReleaseNotes) {
                                       taskReleaseNotes = taskReleaseNotes.replace(/\*\*\n/g, "</b><br>&nbsp;&nbsp;&nbsp;&nbsp;");
                                       taskReleaseNotes = taskReleaseNotes.replace(/\*\*\s/g, "</b> ");
@@ -107,7 +115,8 @@ router.post('/', function(req, res) {
                                     }
                                     var taskHtml = `<b>${mti+1}. <a href="${taskUrl}">${taskId}</a> - ${taskTitle} - (${taskType.toUpperCase()})</b><br>`;
                                     taskHtml += taskReleaseNotes;
-                                    releaseNotesList.push(taskHtml);
+                                    if (taskType.toUpperCase() !== "BUG")
+                                        releaseNotesList.push(taskHtml);
                                   }
                                   var releaseNoteRecipientsPHID = archivedProjectDetails.fields['custom.rivigo:release-notes-recipients'];
                                   if (releaseNoteRecipientsPHID && releaseNoteRecipientsPHID.length > 0) {
