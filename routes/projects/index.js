@@ -71,6 +71,7 @@ router.post('/', function(req, res) {
                   var projectName = archivedProjectDetails.fields['name'];
                   var recipientEmails = [];
                   var recipientNames = [];
+                  let taskOwners = new Map();
                   if (isSendReleaseNotes) {
                     request
                         .post(
@@ -91,80 +92,108 @@ router.post('/', function(req, res) {
                                   console.log("============================================================================");
                                   var maniphestTasksLength = maniphestResponse.body.result.data.length;
                                   var releaseNotesList = [];
+                                  let taskOwnerPHIDList = new Set();
                                   for (var mti = 0; mti < maniphestTasksLength; mti++) {
                                     var taskDetails = maniphestResponse.body.result.data[mti];
-                                    var taskId = "T" + taskDetails.id.toString();
-                                    var taskUrl = phabricatorHost + taskId;
                                     var taskType = taskDetails.fields['subtype'];
-                                    if (taskType.toUpperCase() === "DEFAULT")
-                                      taskType = "Tech Support";
-                                    var taskTitle = taskDetails.fields['name'];
-                                    var releaseNotesFieldData = taskDetails.fields['custom.rivigo:release-notes'];
-                                    if (!releaseNotesFieldData || releaseNotesFieldData === 'null')
-                                      releaseNotesFieldData = "";
-                                    var releaseNotesIndent = "&nbsp;&nbsp;&nbsp;&nbsp;";
-                                    if (mti >=9)
-                                      releaseNotesIndent += "&nbsp;";
-                                    var taskReleaseNotes = releaseNotesIndent+releaseNotesFieldData;
-                                    if (taskReleaseNotes) {
-                                      taskReleaseNotes = taskReleaseNotes.replace(/\*\*\n/g, "</b><br>&nbsp;&nbsp;&nbsp;&nbsp;");
-                                      taskReleaseNotes = taskReleaseNotes.replace(/\*\*\s/g, "</b> ");
-                                      taskReleaseNotes = taskReleaseNotes.replace(/\*\*/g, "<b> ");
-                                      taskReleaseNotes = taskReleaseNotes.replace(/\n/g, "<br>&nbsp;&nbsp;&nbsp;&nbsp;");
-                                      taskReleaseNotes = taskReleaseNotes.replace(/\s\s/g, "&nbsp;&nbsp;");
+                                    var ownerPHID = taskDetails.fields['ownerPHID'];
+                                    if (taskType.toUpperCase() !== "BUG" && ownerPHID && ownerPHID.toString() !== 'null' && ownerPHID.length > 9 && ownerPHID.substring(0,9) === 'PHID-USER') {
+                                      taskOwnerPHIDList.add("'" + ownerPHID + "'");
                                     }
-                                    var taskHtml = `<b>${mti+1}. <a href="${taskUrl}">${taskId}</a> - ${taskTitle} - (${taskType.toUpperCase()})</b><br>`;
-                                    taskHtml += taskReleaseNotes;
-                                    if (taskType.toUpperCase() !== "BUG")
-                                        releaseNotesList.push(taskHtml);
                                   }
-                                  var releaseNoteRecipientsPHID = archivedProjectDetails.fields['custom.rivigo:release-notes-recipients'];
-                                  if (releaseNoteRecipientsPHID && releaseNoteRecipientsPHID.length > 0) {
-                                    var releaseNoteRecipients = "'" + releaseNoteRecipientsPHID.join("','") + "'";
-                                    console.log("Recipients: ", releaseNoteRecipients);
-                                    var query = config.mysql.queries.getUserEmail.replace('_KEY1_', releaseNoteRecipients);
-                                    pool.query(query, function (error, result, fields) {
-                                      if (error)
-                                        console.log("Error occurred while querying db:", error);
-                                      else {
-                                        console.log("Result: ", result.length);
-                                        if (result.length !== releaseNoteRecipientsPHID.length) {
-                                          console.log("Email count and recipients count is not same ")
+                                  var ownerQuery = config.mysql.queries.getUserEmail.replace('_KEY1_', Array.from(taskOwnerPHIDList).join(","));
+                                  pool.query(ownerQuery, function (error, result, fields) {
+                                    console.log("result: ",result,"taskOwnerPhidlist",taskOwnerPHIDList);
+                                    if (error || result.length !== taskOwnerPHIDList.size)
+                                      console.log("Error occurred while querying db:", error);
+                                    else {
+                                      for (var i = 0; i < result.length; i++) {
+                                        if (!taskOwners.has(result[i].phid.toString()))
+                                          taskOwners.set(result[i].phid.toString(), result[i].realName.toString());
+                                      }
+                                      for (mti = 0; mti < maniphestTasksLength; mti++) {
+                                        var taskDetails = maniphestResponse.body.result.data[mti];
+                                        var taskId = "T" + taskDetails.id.toString();
+                                        var taskUrl = phabricatorHost + taskId;
+                                        var taskType = taskDetails.fields['subtype'];
+                                        var ownerPHID = taskDetails.fields['ownerPHID'];
+                                        var ownerRealName;
+                                        if (!ownerPHID || ownerPHID.toString() === '' || ownerPHID.toString() === 'null' || !taskOwners.has(ownerPHID.toString()))
+                                          ownerRealName = 'Unassigned';
+                                        else
+                                          ownerRealName = taskOwners.get(ownerPHID.toString());
+                                        if (taskType.toUpperCase() === "DEFAULT")
+                                          taskType = "Tech Support";
+                                        var taskTitle = taskDetails.fields['name'];
+                                        var releaseNotesFieldData = taskDetails.fields['custom.rivigo:release-notes'];
+                                        if (!releaseNotesFieldData || releaseNotesFieldData === 'null')
+                                          releaseNotesFieldData = "";
+                                        var releaseNotesIndent = "&nbsp;&nbsp;&nbsp;&nbsp;";
+                                        if (mti >= 9)
+                                          releaseNotesIndent += "&nbsp;";
+                                        var taskReleaseNotes = releaseNotesIndent + releaseNotesFieldData;
+                                        if (taskReleaseNotes) {
+                                          taskReleaseNotes = taskReleaseNotes.replace(/\*\*\n/g, "</b><br>&nbsp;&nbsp;&nbsp;&nbsp;");
+                                          taskReleaseNotes = taskReleaseNotes.replace(/\*\*\s/g, "</b> ");
+                                          taskReleaseNotes = taskReleaseNotes.replace(/\*\*/g, "<b> ");
+                                          taskReleaseNotes = taskReleaseNotes.replace(/\n/g, "<br>&nbsp;&nbsp;&nbsp;&nbsp;");
+                                          taskReleaseNotes = taskReleaseNotes.replace(/\s\s/g, "&nbsp;&nbsp;");
                                         }
-                                        for (var i = 0; i < result.length; i++) {
-                                          recipientEmails.push(result[i].address.toString());
-                                          recipientNames.push(result[i].realName.toString());
+                                        if (taskType.toUpperCase() !== "BUG") {
+                                          var taskHtml = `<b>${mti + 1}. <a href="${taskUrl}">${taskId}</a> - ${taskTitle} - (${taskType.toUpperCase()}) - ${ownerRealName}</b><br>`;
+                                          taskHtml += taskReleaseNotes;
+                                          releaseNotesList.push(taskHtml);
                                         }
-                                        console.log("recipientEmails.length:", recipientEmails.length, " recipientNames.length:", recipientNames.length);
-                                        if (recipientEmails.length > 0 && recipientNames.length > 0) {
-                                          var currentTime = moment().format('dddd, MMM Do YYYY').toString();
-                                          let mailOptions = {
-                                            from: config.mail.helperOptions.from,
-                                            to: recipientEmails.join(","),
-                                            subject: config.mail.helperOptions.subject.replace("_KEY1_", projectName).replace("_KEY2_", currentTime),
-                                            text: "this is text body",
-                                            html: releaseNotesList.join("<br><br>"),
-                                          };
-                                          smtpTransport.verify((error, success) => {
-                                            if (error) {
-                                              console.log("Error verifying email: ", error);
-                                              res.status(200).write("Ok");
-                                              res.end();
-                                            } else {
-                                              console.log("Email verification successful");
-                                              smtpTransport.sendMail(mailOptions, (error, info) => {
+                                      }
+                                      var releaseNoteRecipientsPHID = archivedProjectDetails.fields['custom.rivigo:release-notes-recipients'];
+                                      if (releaseNoteRecipientsPHID && releaseNoteRecipientsPHID.length > 0) {
+                                        var releaseNoteRecipients = "'" + releaseNoteRecipientsPHID.join("','") + "'";
+                                        console.log("Recipients: ", releaseNoteRecipients);
+                                        var query = config.mysql.queries.getUserEmail.replace('_KEY1_', releaseNoteRecipients);
+                                        pool.query(query, function (error, result, fields) {
+                                          if (error)
+                                            console.log("Error occurred while querying db:", error);
+                                          else {
+                                            console.log("Result: ", result.length);
+                                            if (result.length !== releaseNoteRecipientsPHID.length) {
+                                              console.log("Email count and recipients count is not same ")
+                                            }
+                                            for (var i = 0; i < result.length; i++) {
+                                              recipientEmails.push(result[i].address.toString());
+                                              recipientNames.push(result[i].realName.toString());
+                                            }
+                                            console.log("recipientEmails.length:", recipientEmails.length, " recipientNames.length:", recipientNames.length);
+                                            if (recipientEmails.length > 0 && recipientNames.length > 0) {
+                                              var currentTime = moment().format('dddd, MMM Do YYYY').toString();
+                                              let mailOptions = {
+                                                from: config.mail.helperOptions.from,
+                                                to: recipientEmails.join(","),
+                                                subject: config.mail.helperOptions.subject.replace("_KEY1_", projectName).replace("_KEY2_", currentTime),
+                                                text: "this is text body",
+                                                html: releaseNotesList.join("<br><br>"),
+                                              };
+                                              smtpTransport.verify((error, success) => {
                                                 if (error) {
-                                                  console.error("Error sending email: ", error);
+                                                  console.log("Error verifying email: ", error);
                                                   res.status(200).write("Ok");
                                                   res.end();
+                                                } else {
+                                                  console.log("Email verification successful");
+                                                  smtpTransport.sendMail(mailOptions, (error, info) => {
+                                                    if (error) {
+                                                      console.error("Error sending email: ", error);
+                                                      res.status(200).write("Ok");
+                                                      res.end();
+                                                    }
+                                                  });
                                                 }
                                               });
                                             }
-                                          });
-                                        }
+                                          }
+                                        });
                                       }
-                                    });
-                                  }
+                                    }
+                                  });
                                 }
                               }
                               },
