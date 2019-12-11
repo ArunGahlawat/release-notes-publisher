@@ -112,6 +112,7 @@ router.post('/', function(req, res) {
                                           taskOwners.set(result[i].phid.toString(), result[i].realName.toString());
                                       }
                                       for (mti = 0; mti < maniphestTasksLength; mti++) {
+                                        var htmlTaskCounter = 0;
                                         var taskDetails = maniphestResponse.body.result.data[mti];
                                         var taskId = "T" + taskDetails.id.toString();
                                         var taskUrl = phabricatorHost + taskId;
@@ -129,7 +130,7 @@ router.post('/', function(req, res) {
                                         if (!releaseNotesFieldData || releaseNotesFieldData === 'null')
                                           releaseNotesFieldData = "";
                                         var releaseNotesIndent = "&nbsp;&nbsp;&nbsp;&nbsp;";
-                                        if (mti >= 9)
+                                        if (htmlTaskCounter >= 9)
                                           releaseNotesIndent += "&nbsp;";
                                         var taskReleaseNotes = releaseNotesIndent + releaseNotesFieldData;
                                         if (taskReleaseNotes) {
@@ -140,7 +141,8 @@ router.post('/', function(req, res) {
                                           taskReleaseNotes = taskReleaseNotes.replace(/\s\s/g, "&nbsp;&nbsp;");
                                         }
                                         if (taskType.toUpperCase() !== "BUG") {
-                                          var taskHtml = `<b>${mti + 1}. <a href="${taskUrl}">${taskId}</a> - ${taskTitle} - (${taskType.toUpperCase()}) - ${ownerRealName}</b><br>`;
+                                          htmlTaskCounter++;
+                                          var taskHtml = `<b>${htmlTaskCounter}. <a href="${taskUrl}">${taskId}</a> - ${taskTitle} - (${taskType.toUpperCase()}) - ${ownerRealName}</b><br>`;
                                           taskHtml += taskReleaseNotes;
                                           releaseNotesList.push(taskHtml);
                                         }
