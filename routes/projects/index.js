@@ -111,8 +111,8 @@ router.post('/', function(req, res) {
                                         if (!taskOwners.has(result[i].phid.toString()))
                                           taskOwners.set(result[i].phid.toString(), result[i].realName.toString());
                                       }
+                                      var htmlTaskCounter = 0;
                                       for (mti = 0; mti < maniphestTasksLength; mti++) {
-                                        var htmlTaskCounter = 0;
                                         var taskDetails = maniphestResponse.body.result.data[mti];
                                         var taskId = "T" + taskDetails.id.toString();
                                         var taskUrl = phabricatorHost + taskId;
